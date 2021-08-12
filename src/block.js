@@ -1,11 +1,11 @@
 /**
  *                          Block class
- *  The Block class is a main component into any Blockchain platform, 
+ *  The Block class is a main component into any Blockchain platform,
  *  it will store the data and act as a dataset for your application.
  *  The class will expose a method to validate the data... The body of
  *  the block will contain an Object that contain the data to be stored,
  *  the data should be stored encoded.
- *  All the exposed methods should return a Promise to allow all the methods 
+ *  All the exposed methods should return a Promise to allow all the methods
  *  run asynchronous.
  */
 
@@ -22,7 +22,7 @@
          this.time = 0;                                              // Timestamp for the Block creation
          this.previousBlockHash = null;                              // Reference to the previous Block Hash
      }
-     
+ 
      /**
       *  validate() method will validate if the block has been tampered or not.
       *  Been tampered means that someone from outside the application tried to change
@@ -37,57 +37,44 @@
       */
      validate() {
          let self = this;
-         return new Promise(async (resolve, reject) => {
+         return new Promise((resolve, reject) => {
              // Save in auxiliary variable the current block hash
-             let tempHash = self.hash;
+             let currentHash = self.hash;
+ 
+             self.hash = null;
+ 
+             let hashFromBlock = SHA256(JSON.stringify(self)).toString();
+ 
+             self.hash = currentHash;
+ 
+             resolve(currentHash==hashFromBlock);
+ 
              // Recalculate the hash of the Block
-             let tempBlock = {
-                 hash: null,
-                 height: self.height,
-                 body: self.body,
-                 time: self.time,
-                 previousBlockHash: self.previousBlockHash
-             }
-             let calcHash = SHA256(JSON.stringify(tempBlock)).toString();
              // Comparing if the hashes changed
-             if (tempHash != calcHash) {
-                 // Returning the Block is not valid
-                 resolve(false);
-             } else {
-                 // Returning the Block is valid
-                 resolve(true);
-             }
+             // Returning the Block is not valid
+ 
+             // Returning the Block is valid
+ 
          });
      }
  
      /**
       *  Auxiliary Method to return the block body (decoding the data)
       *  Steps:
-      *  
+      *
       *  1. Use hex2ascii module to decode the data
       *  2. Because data is a javascript object use JSON.parse(string) to get the Javascript Object
-      *  3. Resolve with the data and make sure that you don't need to return the data for the `genesis block` 
+      *  3. Resolve with the data and make sure that you don't need to return the data for the `genesis block`
       *     or Reject with an error.
       */
      getBData() {
-         let self = this;
-         return new Promise(async (resolve, reject) => {
-             if (self.height == 0) {
-                 resolve("This is the Genesis Block");
-             }
-             // Getting the encoded data saved in the Block
-             let encodedData = this.body;
-             // Decoding the data to retrieve the JSON representation of the object
-             let decodedData = hex2ascii(encodedData);
-             // Parse the data to an object to be retrieve.
-             let dataObject = JSON.parse(decodedData);
-             // Resolve with the data if the object isn't the Genesis block
-             if (dataObject) {
-                 resolve(dataObject);
-             } else {
-                 reject(Error("The Block has no data."))
-             }
-         });
+                 return JSON.parse(hex2ascii(this.body));
+         // Getting the encoded data saved in the Block
+         // Decoding the data to retrieve the JSON representation of the object
+         // Parse the data to an object to be retrieve.
+ 
+         // Resolve with the data if the object isn't the Genesis block
+ 
      }
  
  }
