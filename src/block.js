@@ -67,16 +67,24 @@
       *  3. Resolve with the data and make sure that you don't need to return the data for the `genesis block`
       *     or Reject with an error.
       */
-     getBData() {
-                 return JSON.parse(hex2ascii(this.body));
-         // Getting the encoded data saved in the Block
-         // Decoding the data to retrieve the JSON representation of the object
-         // Parse the data to an object to be retrieve.
- 
-         // Resolve with the data if the object isn't the Genesis block
- 
-     }
- 
- }
+      getBData() {
+        let self = this;
+        // Getting the encoded data saved in the Block
+        // Decoding the data to retrieve the JSON representation of the object
+        // Parse the data to an object to be retrieve.
+        let data=hex2ascii(self.body)
+        // Resolve with the data if the object isn't the Genesis block
+        let object=JSON.parse(data)
+        return new Promise((resolve, reject) => {
+        if(self.previousBlockHash!==null){
+        resolve(object)
+        }   else{
+            reject();
+    }
+        
+
+    });
+}
+}
  
  module.exports.Block = Block;                    // Exposing the Block class as a module
