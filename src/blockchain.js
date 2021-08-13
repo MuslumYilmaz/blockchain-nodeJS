@@ -134,7 +134,7 @@
  
             if (bitcoinMessage.verify(message, address, signature)) {
               let block = new BlockClass.Block({data: star});
-              block.walletAddress = address;
+              block.owner = address;
               let newChain = await this._addBlock(block);
               resolve(newChain);
             }
