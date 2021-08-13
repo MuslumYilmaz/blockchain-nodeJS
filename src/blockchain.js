@@ -1,11 +1,11 @@
 /**
  *                          Blockchain Class
  *  The Blockchain class contain the basics functions to create your own private blockchain
- *  It uses libraries like `crypto-js` to create the hashes for each block and `bitcoinjs-message`
+ *  It uses libraries like `crypto-js` to create the hashes for each block and `bitcoinjs-message` 
  *  to verify a message signature. The chain is stored in the array
  *  `this.chain = [];`. Of course each time you run the application the chain will be empty because and array
  *  isn't a persisten storage method.
- *
+ *  
  */
 
  const SHA256 = require('crypto-js/sha256');
@@ -51,42 +51,36 @@
  
      /**
       * _addBlock(block) will store a block in the chain
-      * @param {*} block
+      * @param {*} block 
       * The method will return a Promise that will resolve with the block added
       * or reject if an error happen during the execution.
       * You will need to check for the height to assign the `previousBlockHash`,
-      * assign the `timestamp` and the correct `height`...At the end you need to
-      * create the `block hash` and push the block into the chain array. Don't for get
+      * assign the `timestamp` and the correct `height`...At the end you need to 
+      * create the `block hash` and push the block into the chain array. Don't for get 
       * to update the `this.height`
-      * Note: the symbol `_` in the method name indicates in the javascript convention
-      * that this method is a private method.
+      * Note: the symbol `_` in the method name indicates in the javascript convention 
+      * that this method is a private method. 
       */
      _addBlock(block) {
          let self = this;
+         self.chain = []
          return new Promise(async (resolve, reject) => {
-              let currentHeight = self.height;
+            try {
  
-              let isValidate = block.validate();
+             if(self.height > 0 ){
+                 block.previousBlockHash = self.chain[self.chain.length - 1].hash;
+             }
  
-              if (!isValidate) {
-                 reject('not valid');
-              }
- 
-              block.time = new Date().getTime().toString().slice(0,-3);
- 
-              if (currentHeight >= 0) {
-                 let prevHash = self.chain[currentHeight].hash;
-                 block.previousBlockHash = prevHash;
-              }
- 
-              block.height = currentHeight += 1;
- 
+              block.time = new Date().getTime().toString().slice(0, -3);
               block.hash = SHA256(JSON.stringify(block)).toString();
- 
-              self.chain.push(block);
-              self.height += 1;
- 
-              resolve(block);
+              block.height = self.height + 1;
+              self.height++
+              self.chain.push(block)
+              resolve(block)
+              self.validateChain()
+            } catch (error) {
+                reject(new Error(error))
+            }
          });
      }
  
@@ -96,15 +90,17 @@
       * sign it with your Bitcoin Wallet (Electrum or Bitcoin Core)
       * This is the first step before submit your Block.
       * The method return a Promise that will resolve with the message to be signed
-      * @param {*} address
+      * @param {*} address 
       */
      requestMessageOwnershipVerification(address) {
          return new Promise((resolve) => {
-             const da = address+":"+new Date().getTime().toString().slice(0,-3)+":starRegistry";
-             resolve(da);
+             try {
+                 resolve(`${address}:${new Date().getTime().toString().slice(0, -3)}:starRegistry`)
+             } catch (error) {
+                 reject (new Error(error))
+             }
          });
      }
- 
      /**
       * The submitStar(address, message, signature, star) method
       * will allow users to register a new Block with the star object
@@ -117,29 +113,29 @@
       * 4. Veify the message with wallet address and signature: `bitcoinMessage.verify(message, address, signature)`
       * 5. Create the block and add it to the chain
       * 6. Resolve with the block added.
-      * @param {*} address
-      * @param {*} message
-      * @param {*} signature
-      * @param {*} star
+      * @param {*} address 
+      * @param {*} message 
+      * @param {*} signature 
+      * @param {*} star 
       */
      submitStar(address, message, signature, star) {
          let self = this;
-         return new Promise(async (resolve, reject) => {
-            let timeFromMessage = parseInt(message.split(":")[1]);
-            let currentTime     = new Date().getTime().toString().slice(0, -3);
- 
-            if ((currentTime - timeFromMessage) > 300) {
-               //reject('Time has elapsed. Please create a new Message');
-            }
- 
-            if (bitcoinMessage.verify(message, address, signature)) {
-              let block = new BlockClass.Block({data: star});
-              block.owner = address;
-              let newChain = await this._addBlock(block);
-              resolve(newChain);
-            }
-            reject('could not verify');
- 
+         return new Promise( (resolve, reject) => {
+             
+                 let time = parseInt(message.split(':')[1]);
+                 let currentTime = parseInt(new Date().getTime().toString().slice(0, -3));
+                 if(currentTime - time < 300){
+                     if( !bitcoinMessage.verify(message, address, signature)){
+                         reject (new Error('Could not verify signatur, address, message'))
+                     } else {
+                         const data = { owner: address, star: star} 
+                       const block = new BlockClass.Block(data); 
+                       self._addBlock(block)
+                       resolve(block);
+                       self.validateChain()
+                     }
+                     reject (new Error('Error'))
+                 }     
          });
      }
  
@@ -147,24 +143,29 @@
       * This method will return a Promise that will resolve with the Block
       *  with the hash passed as a parameter.
       * Search on the chain array for the block that has the hash.
-      * @param {*} hash
+      * @param {*} hash 
       */
      getBlockByHash(hash) {
          let self = this;
          return new Promise((resolve, reject) => {
-             resolve(self.chain.filter(ch => ch.hash === hash));
+             try {
+                 const result = this.chain.find((block) => hash === block.hash);
+                  resolve(result)
+             } catch (error) {
+                 reject(new Error(error))
+             }
          });
      }
  
      /**
-      * This method will return a Promise that will resolve with the Block object
+      * This method will return a Promise that will resolve with the Block object 
       * with the height equal to the parameter `height`
-      * @param {*} height
+      * @param {*} height 
       */
      getBlockByHeight(height) {
          let self = this;
          return new Promise((resolve, reject) => {
-             let block = self.chain.filter(p => p.height === height)[0];
+             let block = self.chain.find(p => p.height === height)[0];
              if(block){
                  resolve(block);
              } else {
@@ -174,24 +175,26 @@
      }
  
      /**
-      * This method will return a Promise that will resolve with an array of Stars objects existing in the chain
+      * This method will return a Promise that will resolve with an array of Stars objects existing in the chain 
       * and are belongs to the owner with the wallet address passed as parameter.
       * Remember the star should be returned decoded.
-      * @param {*} address
+      * @param {*} address 
       */
      getStarsByWalletAddress (address) {
          let self = this;
          let stars = [];
-         return new Promise((resolve, reject) => {
-             let blocks = self.chain.filter(c => c.walletAddress == address);
-             blocks.forEach((item, i) => {
-                 let decodedStars = item.body;
-                 let star = item.getBData().data;
-                 if (star) {
-                   stars.push({"owner":address,star});
-                 }
-             });
-             resolve(stars);
+         return new Promise( async(resolve, reject) => {
+             try {
+                 self.chain.forEach(async(b) => {
+                     let data = await b.getBData();
+                     if ( data && data.owner === address ) {
+                         stars.push(data)
+                         resolve(stars)
+                     } 
+                 });    
+             } catch (error) {
+                 reject (new Error(error))
+             }
          });
      }
  
@@ -204,22 +207,22 @@
      validateChain() {
          let self = this;
          let errorLog = [];
-         return new Promise(async (resolve, reject) => {
-             self.chain.forEach((item, i) => {
-                let data = item.data;
-                if (i > 0) {
-                   if (self.chain[i-1].hash !== item.previousBlockHash) {
-                      errorLog.push('inconsistent hash match');
-                   }
-                }
-                item.validate().then(
-                     error => errorLog.push(error)
-                );
-             });
-             resolve(errorLog);
+         return new Promise((resolve, reject) => {
+             self.chain.forEach( async block => {
+                 const  isValidBlock  = await block.validate();
+                 if ( !isValidBlock) {
+                     errorLog.push({ error: 'Block validation failed' })
+                 }else{
+                     if(block.previousBlockHash !== self.chain[self.chain.length - 1].hash){
+                         errorLog.push({ error: 'Block validation failed' })
+                     }
+                     resolve(errorLog)
+                 }    
+             }              
+         );
          });
      }
  
  }
  
- module.exports.Blockchain = Blockchain;
+ module.exports.Blockchain = Blockchain;   

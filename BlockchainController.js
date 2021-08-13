@@ -1,14 +1,10 @@
 /**
  *          BlockchainController
  *       (Do not change this code)
- *
- * This class expose the endpoints that the client applications will use to interact with the
- * Blockchain dataset
  * 
+ * This class expose the endpoints that the client applications will use to interact with the 
+ * Blockchain dataset
  */
-
- const bodyParser = require('body-parser');
- 
  class BlockchainController {
 
     //The constructor receive the instance of the express.js app and the Blockchain class
@@ -21,6 +17,7 @@
         this.submitStar();
         this.getBlockByHash();
         this.getStarsByOwner();
+        this.validateChain()
     }
 
     // Enpoint to Get a Block by Height (GET Endpoint)
@@ -37,7 +34,7 @@
             } else {
                 return res.status(404).send("Block Not Found! Review the Parameters!");
             }
-
+            
         });
     }
 
@@ -60,15 +57,12 @@
 
     // Endpoint that allow Submit a Star, yu need first to `requestOwnership` to have the message (POST endpoint)
     submitStar() {
-        this.app.use(bodyParser.urlencoded({extended:false}));
-        this.app.use(bodyParser.json());
         this.app.post("/submitstar", async (req, res) => {
             if(req.body.address && req.body.message && req.body.signature && req.body.star) {
                 const address = req.body.address;
                 const message = req.body.message;
                 const signature = req.body.signature;
                 const star = req.body.star;
-                console.log(req.body)
                 try {
                     let block = await this.blockchain.submitStar(address, message, signature, star);
                     if(block){
@@ -99,8 +93,19 @@
             } else {
                 return res.status(404).send("Block Not Found! Review the Parameters!");
             }
-
+            
         });
+    }
+    // This endpoint allows you to request the chain is valid or compromised
+    validateChain(){
+        this.app.get("/validateChain", async(req,res)=>{
+            let errorLog = await this.blockchain.validateChain();
+            if(errorLog !== 0){
+                res.status(500).send("The chain is corrupt and has errors")
+            } else{
+                return res.status(200).send("The chain is validated and correct")
+            }
+        })
     }
 
     // This endpoint allows you to request the list of Stars registered by an owner
@@ -121,7 +126,7 @@
             } else {
                 return res.status(500).send("Block Not Found! Review the Parameters!");
             }
-
+            
         });
     }
 
