@@ -18,7 +18,7 @@
      constructor(data){
          this.hash = null;                                           // Hash of the block
          this.height = 0;                                            // Block Height (consecutive number of each block)
-         this.body = Buffer.from(JSON.stringify(data)).toString('hex');   // Will contain the transactions stored in the block, by default it will encode the data
+         this.body = Buffer(JSON.stringify(data)).toString('hex');   // Will contain the transactions stored in the block, by default it will encode the data
          this.time = 0;                                              // Timestamp for the Block creation
          this.previousBlockHash = null;                              // Reference to the previous Block Hash
      }
@@ -38,20 +38,21 @@
      validate() {
          let self = this;
          return new Promise((resolve, reject) => {
-             // Save in auxiliary variable the current block hash
-             var currentHash = self.hash;            
-             var block = Object.assign({}, self);
-             block.hash = null;
-             // Recalculate the hash of the Block
-             const recalcHash = SHA256(JSON.stringify(block)).toString();
-             // Comparing if the hashes changed
-             if (currentHash != recalcHash) {
+             try {
+                 // Save in auxiliary variable the current block hash
+                 let currentHash = self.hash;   
+                     self.hash = null;                      
+                 // Recalculate the hash of the Block
+                     const newHash = SHA256(JSON.stringify(self)).toString();
+                 // Comparing if the hashes changed
+                     self.hash = currentHash
                  // Returning the Block is not valid
-                 resolve(false);
-             } else {
+                 resolve(currentHash === newHash)
                  // Returning the Block is valid
-                 resolve(true);
+             } catch (error) {
+                 reject(new Error(error))
              }
+ 
          });
      }
  
@@ -66,20 +67,18 @@
       */
      getBData() {
          let self = this;
-         return new Promise((resolve, reject) => {
-             // Getting the encoded data saved in the Block
-             var encBData = self.body;
-             // Decoding the data to retrieve the JSON representation of the object
-             var decBData = hex2ascii(encBData);
-             // Parse the data to an object to be retrieve.
-             var dataObj = JSON.parse(decBData);
-             // Resolve with the data if the object isn't the Genesis block
-             if (self.height > 0) {
-                 resolve(dataObj);
-             } else {
-                 reject('error: genesis block');
+         // Getting the encoded data saved in the Block
+         let encodedData = self.body;
+         // Decoding the data to retrieve the JSON representation of the object
+         let decodedData = hex2ascii(encodedData);
+         // Parse the data to an object to be retrieve.
+             let myData = JSON.parse(decodedData)
+         // Resolve with the data if the object isn't the Genesis block
+             if( myData && self.height > 0){
+                 return myData
+             }else {
+                 console.log('error')
              }
-         });
      }
  
  }

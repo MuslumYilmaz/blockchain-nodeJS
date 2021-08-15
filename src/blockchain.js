@@ -1,3 +1,4 @@
+  
 /**
  *                          Blockchain Class
  *  The Blockchain class contain the basics functions to create your own private blockchain
@@ -63,25 +64,24 @@
       */
      _addBlock(block) {
          let self = this;
+         self.chain = []
          return new Promise(async (resolve, reject) => {
-             try {
-                 // block height
-                 block.height = self.chain.length;
-                 // UTC timestamp
-                 block.time = new Date().getTime().toString().slice(0,-3);
-                 if(self.chain.length>0) {
-                     // previous block hash
-                     block.previousBlockHash = self.chain[self.chain.length-1].hash;
-                 }
-                 // SHA256 requires a string of data
-                 block.hash = SHA256(JSON.stringify(block)).toString();
-                 // add block to chain
-                 self.chain.push(block);
+            try {
  
-                 resolve(block);
-             } catch (e) {
-                 reject('error: ' + e.message);
+             if(self.height > 0 ){
+                 block.previousBlockHash = self.chain[self.chain.length - 1].hash;
              }
+ 
+              block.time = new Date().getTime().toString().slice(0, -3);
+              block.hash = SHA256(JSON.stringify(block)).toString();
+              block.height = self.height + 1;
+              self.height++
+              self.chain.push(block)
+              resolve(block)
+              self.validateChain()
+            } catch (error) {
+                reject(new Error(error))
+            }
          });
      }
  
@@ -95,12 +95,13 @@
       */
      requestMessageOwnershipVerification(address) {
          return new Promise((resolve) => {
-             // <WALLET_ADDRESS>:${new Date().getTime().toString().slice(0,-3)}:starRegistry;
-             const currDate = new Date().getTime().toString().slice(0,-3);
-             resolve(`${address}:${currDate}:starRegistry`);
+             try {
+                 resolve(`${address}:${new Date().getTime().toString().slice(0, -3)}:starRegistry`)
+             } catch (error) {
+                 reject (new Error(error))
+             }
          });
      }
- 
      /**
       * The submitStar(address, message, signature, star) method
       * will allow users to register a new Block with the star object
@@ -110,7 +111,7 @@
       * 1. Get the time from the message sent as a parameter example: `parseInt(message.split(':')[1])`
       * 2. Get the current time: `let currentTime = parseInt(new Date().getTime().toString().slice(0, -3));`
       * 3. Check if the time elapsed is less than 5 minutes
-      * 4. Verify the message with wallet address and signature: `bitcoinMessage.verify(message, address, signature)`
+      * 4. Veify the message with wallet address and signature: `bitcoinMessage.verify(message, address, signature)`
       * 5. Create the block and add it to the chain
       * 6. Resolve with the block added.
       * @param {*} address 
@@ -120,25 +121,22 @@
       */
      submitStar(address, message, signature, star) {
          let self = this;
-         return new Promise(async (resolve, reject) => {
-             try {
-                 var messageTime = parseInt(message.split(':')[1]);
+         return new Promise( (resolve, reject) => {
+             
+                 let time = parseInt(message.split(':')[1]);
                  let currentTime = parseInt(new Date().getTime().toString().slice(0, -3));
-                 // TODO: change back to 300
-                 if ((currentTime - messageTime) >= 30000) {
-                     throw new Error("time elapsed not less than 5 minutes");
-                 }
-                 if (!bitcoinMessage.verify(message, address, signature)) {
-                     throw new Error("message verification error");
-                 }
- 
-                 var blockInfo = { "address":address, "signature":signature, "message":message, "star": star };
-                 let block = this._addBlock(new BlockClass.Block(blockInfo));
- 
-                 resolve(block);
-             } catch (e) {
-                 reject('error: ' + e.message);
-             }
+                 if(currentTime - time < 300){
+                     if( !bitcoinMessage.verify(message, address, signature)){
+                         reject (new Error('Could not verify signatur, address, message'))
+                     } else {
+                         const data = { owner: address, star: star} 
+                       const block = new BlockClass.Block(data); 
+                       self._addBlock(block)
+                       resolve(block);
+                       self.validateChain()
+                     }
+                     reject (new Error('Error'))
+                 }     
          });
      }
  
@@ -151,11 +149,12 @@
      getBlockByHash(hash) {
          let self = this;
          return new Promise((resolve, reject) => {
-             self.chain.forEach(function(block){
-                 if (block.hash == hash) {
-                     resolve(block)
-                 }
-             });
+             try {
+                 const result = this.chain.find((block) => hash === block.hash);
+                  resolve(result)
+             } catch (error) {
+                 reject(new Error(error))
+             }
          });
      }
  
@@ -167,7 +166,7 @@
      getBlockByHeight(height) {
          let self = this;
          return new Promise((resolve, reject) => {
-             let block = self.chain.filter(p => p.height === height)[0];
+             let block = self.chain.find(p => p.height === height)[0];
              if(block){
                  resolve(block);
              } else {
@@ -185,17 +184,18 @@
      getStarsByWalletAddress (address) {
          let self = this;
          let stars = [];
-         return new Promise((resolve, reject) => {
-             self.chain.forEach(function(el) {
-                 if (el.height > 0) {
-                     el.getBData().then(function(BData) {
-                         if (BData.address == address) {
-                             stars.push({ "owner":BData.address, "star":BData.star });
-                         }
-                     });
-                 }
-             });
-             resolve(stars);
+         return new Promise( async(resolve, reject) => {
+             try {
+                 self.chain.forEach(async(b) => {
+                     let data = await b.getBData();
+                     if ( data && data.owner === address ) {
+                         stars.push(data)
+                         resolve(stars)
+                     } 
+                 });    
+             } catch (error) {
+                 reject (new Error(error))
+             }
          });
      }
  
@@ -208,18 +208,22 @@
      validateChain() {
          let self = this;
          let errorLog = [];
-         return new Promise(async (resolve, reject) => {
-             self.chain.forEach(function(el) {
-                 el.validate().then(function(valid) {
-                     if (!valid) {
-                         errorLog.push(`Block ${el.height} invalid`);
+         return new Promise((resolve, reject) => {
+             self.chain.forEach( async block => {
+                 const  isValidBlock  = await block.validate();
+                 if ( !isValidBlock) {
+                     errorLog.push({ error: 'Block validation failed' })
+                 }else{
+                     if(block.previousBlockHash !== self.chain[self.chain.length - 1].hash){
+                         errorLog.push({ error: 'Block validation failed' })
                      }
-                 });
-             });
-             resolve(errorLog);
+                     resolve(errorLog)
+                 }    
+             }              
+         );
          });
      }
  
  }
  
- module.exports.Blockchain = Blockchain;  
+ module.exports.Blockchain = Blockchain;   
