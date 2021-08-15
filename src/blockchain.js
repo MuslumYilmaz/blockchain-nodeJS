@@ -67,6 +67,11 @@
          self.chain = []
          return new Promise(async (resolve, reject) => {
             try {
+            const errors = await this.validateChain();
+
+             if (errors.length > 0) {
+                reject(errors);
+             }
  
              if(self.height > 0 ){
                  block.previousBlockHash = self.chain[self.chain.length - 1].hash;
@@ -78,7 +83,6 @@
               self.height++
               self.chain.push(block)
               resolve(block)
-              self.validateChain()
             } catch (error) {
                 reject(new Error(error))
             }
