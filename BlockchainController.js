@@ -17,7 +17,8 @@
         this.submitStar();
         this.getBlockByHash();
         this.getStarsByOwner();
-        this.validateChain()
+        this.getValidationInfo();
+        this.getDefault();
     }
 
     // Enpoint to Get a Block by Height (GET Endpoint)
@@ -55,7 +56,7 @@
         });
     }
 
-    // Endpoint that allow Submit a Star, yu need first to `requestOwnership` to have the message (POST endpoint)
+    // Endpoint that allow Submit a Star, you need first to `requestOwnership` to have the message (POST endpoint)
     submitStar() {
         this.app.post("/submitstar", async (req, res) => {
             if(req.body.address && req.body.message && req.body.signature && req.body.star) {
@@ -96,17 +97,6 @@
             
         });
     }
-    // This endpoint allows you to request the chain is valid or compromised
-    validateChain(){
-        this.app.get("/validateChain", async(req,res)=>{
-            let errorLog = await this.blockchain.validateChain();
-            if(errorLog !== 0){
-                res.status(500).send("The chain is corrupt and has errors")
-            } else{
-                return res.status(200).send("The chain is validated and correct")
-            }
-        })
-    }
 
     // This endpoint allows you to request the list of Stars registered by an owner
     getStarsByOwner() {
@@ -127,6 +117,24 @@
                 return res.status(500).send("Block Not Found! Review the Parameters!");
             }
             
+        });
+    }
+
+    // Enpoint to Get Validation Info
+    getValidationInfo() {
+        this.app.get("/validationInfo", async (req, res) => {
+            let info = await this.blockchain.validateChain();
+            if(Object.keys(info).length > 0){
+                return res.status(200).json(info);
+            } else {
+                return res.status(404).send("No Errors found!");
+            }
+        });
+    }
+
+    getDefault() {
+        this.app.get('/', async (req, res) => {
+            res.send('Welcome to my private Blockchain project!')
         });
     }
 
